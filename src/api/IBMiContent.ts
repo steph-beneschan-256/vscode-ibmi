@@ -9,6 +9,7 @@ import { ObjectTypes } from '../schemas/Objects';
 import fs from 'fs';
 import { ConnectionConfiguration } from './Configuration';
 import { IBMiError, IBMiFile, IBMiMember, IBMiObject, IFSFile } from '../typings';
+import { SSHPutFilesOptions } from 'node-ssh';
 const tmpFile = util.promisify(tmp.file);
 const readFileAsync = util.promisify(fs.readFile);
 const writeFileAsync = util.promisify(fs.writeFile);
@@ -75,11 +76,11 @@ export default class IBMiContent {
     if (!localPath) {
       localPath = await tmpFile();
     }
-    await client.getFile(localPath, remotePath); //TODO: replace with downloadfile
+    await this.ibmi.downloadFile(localPath, remotePath);
     return readFileAsync(localPath, `utf8`);
   }
 
-  async writeStreamfile(originalPath: any, content: any) {
+  async writeStreamfile(originalPath: any, content: any, options?: SSHPutFilesOptions) {
     const client = this.ibmi.client;
     const features = this.ibmi.remoteFeatures;
     const tmpobj = await tmpFile();
@@ -95,10 +96,10 @@ export default class IBMiContent {
     if (ccsid && features.iconv) {
       // Upload our file to the same temp file, then write convert it back to the original ccsid
       const tempFile = this.getTempRemote(originalPath);
-      await client.putFile(tmpobj, tempFile); //TODO: replace with uploadFiles
+      await this.ibmi.uploadFiles([{local: tmpobj, remote: tempFile}], options);
       return await this.convertToUTF8(features.iconv, tempFile, originalPath, ccsid);
     } else {
-      return client.putFile(tmpobj, originalPath);
+      return this.ibmi.uploadFiles([{local: tmpobj, remote: originalPath}], options);
     }
   }
 
